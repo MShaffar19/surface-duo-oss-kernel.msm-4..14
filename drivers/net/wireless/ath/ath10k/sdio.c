@@ -1857,8 +1857,6 @@ static int ath10k_sdio_hif_start(struct ath10k *ar)
 	struct ath10k_sdio *ar_sdio = ath10k_sdio_priv(ar);
 	int ret;
 
-	napi_enable(&ar->napi);
-
 	/* Sleep 20 ms before HIF interrupts are disabled.
 	 * This will give target plenty of time to process the BMI done
 	 * request before interrupts are disabled.
@@ -1985,7 +1983,6 @@ static void ath10k_sdio_hif_stop(struct ath10k *ar)
 	spin_unlock_bh(&ar_sdio->wr_async_lock);
 
 	napi_synchronize(&ar->napi);
-	napi_disable(&ar->napi);
 }
 
 #ifdef CONFIG_PM
@@ -2212,6 +2209,7 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 
 	netif_napi_add(&ar->napi_dev, &ar->napi, ath10k_sdio_napi_poll,
 		       ATH10K_NAPI_BUDGET);
+	napi_enable(&ar->napi);
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT,
 		   "sdio new func %d vendor 0x%x device 0x%x block 0x%x/0x%x\n",
@@ -2325,6 +2323,7 @@ static void ath10k_sdio_remove(struct sdio_func *func)
 
 	ath10k_core_unregister(ar);
 
+	napi_disable(&ar->napi);
 	netif_napi_del(&ar->napi);
 
 	ath10k_core_destroy(ar);
