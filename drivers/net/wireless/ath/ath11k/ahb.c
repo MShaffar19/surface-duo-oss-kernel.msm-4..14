@@ -921,12 +921,17 @@ err_core_free:
 static int ath11k_ahb_remove(struct platform_device *pdev)
 {
 	struct ath11k_base *ab = platform_get_drvdata(pdev);
+	int ret = 0;
 
 	reinit_completion(&ab->driver_recovery);
 
-	if (test_bit(ATH11K_FLAG_RECOVERY, &ab->dev_flags))
-		wait_for_completion_timeout(&ab->driver_recovery,
-					    ATH11K_AHB_RECOVERY_TIMEOUT);
+	if (test_bit(ATH11K_FLAG_RECOVERY, &ab->dev_flags)) {
+		if (!wait_for_completion_timeout(&ab->driver_recovery,
+						 ATH11K_AHB_RECOVERY_TIMEOUT)) {
+			ath11k_warn(ab, "fail to receive recovery response completion.\n");
+			ret = -ETIMEDOUT;
+		}
+	}
 
 	set_bit(ATH11K_FLAG_UNREGISTERING, &ab->dev_flags);
 	cancel_work_sync(&ab->restart_work);
@@ -939,7 +944,7 @@ static int ath11k_ahb_remove(struct platform_device *pdev)
 	ath11k_core_free(ab);
 	platform_set_drvdata(pdev, NULL);
 
-	return 0;
+	return ret;
 }
 
 static struct platform_driver ath11k_ahb_driver = {
